@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2026 Joint Filer Tax Simulator — Income vs Tax Owed</title>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg-primary: #f8fafc;
+      --card-bg: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --border-color: #e2e8f0;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --accent-ord: #d97706;
+      --accent-qual: #059669;
+      --accent-rate: #dc2626;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      padding: 24px 16px;
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 8px;
+    }
+
+    header h1 {
+      font-size: 1.875rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    header p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-top: 4px;
+    }
+
+    .grid-layout {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 900px) {
+      .grid-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .field label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .field input[type="number"] {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .field input[type="number"]:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+
+    .checkbox-field {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .checkbox-field label {
+      font-size: 0.85rem;
+      color: var(--text-main);
+      cursor: pointer;
+    }
+
+    .preset-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .btn-preset {
+      padding: 6px 10px;
+      font-size: 0.75rem;
+      background-color: #f1f5f9;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+      color: var(--text-main);
+      transition: all 0.15s;
+    }
+
+    .btn-preset:hover {
+      background-color: #e2e8f0;
+    }
+
+    /* KPI Cards */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .kpi-card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+
+    .kpi-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .kpi-value {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-top: 4px;
+    }
+
+    .chart-container {
+      position: relative;
+      height: 420px;
+      width: 100%;
+    }
+
+    /* Table styles */
+    .table-wrapper {
+      max-height: 300px;
+      overflow-y: auto;
+      margin-top: 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      text-align: right;
+    }
+
+    th, td {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    th {
+      background-color: #f1f5f9;
+      color: var(--text-muted);
+      font-weight: 600;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    tr:hover {
+      background-color: #f8fafc;
+    }
+
+    th:first-child, td:first-child {
+      text-align: left;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <h1>2026 Joint Filer Income vs. Tax Owed Graph</h1>
+      <p>2026 Federal Tax Parameters for Married Filing Jointly (MFJ) with Qualified Income Stacking</p>
+    </header>
+
+    <div class="grid-layout">
+      <!-- INPUTS CONTROL PANEL -->
+      <div class="card">
+        <div class="card-title">
+          <span>Input Variables</span>
+          <span style="font-size: 0.75rem; color: var(--text-muted);">2026 MFJ</span>
+        </div>
+
+        <div class="input-group">
+          <div class="field">
+            <label for="startOrd">Starting Ordinary Income ($)</label>
+            <input type="number" id="startOrd" value="45000" step="1000" min="0">
+          </div>
+
+          <div class="field">
+            <label for="startQual">Starting Qualified Income ($)</label>
+            <input type="number" id="startQual" value="45000" step="1000" min="0">
+          </div>
+
+          <div class="field">
+            <label for="incOrd">Ordinary Income Increment ($)</label>
+            <input type="number" id="incOrd" value="2000" step="500" min="0">
+          </div>
+
+          <div class="field">
+            <label for="incQual">Qualified Income Increment ($)</label>
+            <input type="number" id="incQual" value="0" step="500" min="0">
+          </div>
+
+          <div class="field">
+            <label for="maxIncome">Total Max Income ($)</label>
+            <input type="number" id="maxIncome" value="250000" step="10000" min="10000">
+          </div>
+
+          <div class="field">
+            <label for="stdDed">2026 Standard Deduction ($)</label>
+            <input type="number" id="stdDed" value="32200" step="100" min="0">
+          </div>
+
+          <div class="checkbox-field">
+            <input type="checkbox" id="includeNiit" checked>
+            <label for="includeNiit">Include 3.8% NIIT (> $250k MAGI)</label>
+          </div>
+
+          <div style="margin-top: 10px;">
+            <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">Quick Presets:</label>
+            <div class="preset-buttons">
+              <button class="btn-preset" onclick="applyPreset('default')">Default Scenario</button>
+              <button class="btn-preset" onclick="applyPreset('pureOrd')">100% Ordinary</button>
+              <button class="btn-preset" onclick="applyPreset('balanced')">2:1 Ord/Qual</button>
+              <button class="btn-preset" onclick="applyPreset('fixedOrd')">Fixed $50k Ord</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MAIN OUTPUT PANEL -->
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        <!-- KPI METRICS -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">Max Total Income</div>
+            <div class="kpi-value" id="kpiMaxIncome">$0</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Total Tax Owed</div>
+            <div class="kpi-value" id="kpiTaxOwed" style="color: var(--primary);">$0</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Tax Chg / Inc Chg (&Delta;Tax / &Delta;Inc)</div>
+            <div class="kpi-value" id="kpiTaxPercentChange" style="color: var(--accent-rate);">0%</div>
+          </div>
+        </div>
+
+        <!-- GRAPH CHART -->
+        <div class="card">
+          <div class="card-title">Total Income vs. Tax Owed Trajectory (2026 Rules)</div>
+          <div class="chart-container">
+            <canvas id="taxChart"></canvas>
+          </div>
+        </div>
+
+        <!-- BREAKDOWN TABLE -->
+        <div class="card">
+          <div class="card-title">Detailed Step Breakdown</div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Total Income</th>
+                  <th>Ordinary Inc.</th>
+                  <th>Qualified Inc.</th>
+                  <th>Ord. Tax</th>
+                  <th>Qual. Tax</th>
+                  <th>NIIT (3.8%)</th>
+                  <th>Total Tax</th>
+                  <th>&Delta;Tax / &Delta;Inc</th>
+                </tr>
+              </thead>
+              <tbody id="tableBody">
+                <!-- Rows injected dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 2026 Married Filing Jointly (MFJ) Brackets
+    const ORD_BRACKETS = [
+      { min: 0, max: 24800, rate: 0.10 },
+      { min: 24800, max: 100800, rate: 0.12 },
+      { min: 100800, max: 211400, rate: 0.22 },
+      { min: 211400, max: 403550, rate: 0.24 },
+      { min: 403550, max: 512450, rate: 0.32 },
+      { min: 512450, max: 768700, rate: 0.35 },
+      { min: 768700, max: Infinity, rate: 0.37 }
+    ];
+
+    // 2026 Qualified Dividends / Capital Gains Thresholds (MFJ)
+    const QUAL_THRESHOLDS = {
+      zero: 98900,
+      fifteen: 613700
+    };
+
+    const NIIT_THRESHOLD_MFJ = 250000;
+
+    let chartInstance = null;
+
+    function formatCurrency(val) {
+      return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
+    }
+
+    function calculateTax(ordIncome, qualIncome, stdDed, includeNiit) {
+      // 1. Standard deduction applies to Ordinary income first
+      const taxableOrd = Math.max(0, ordIncome - stdDed);
+      const leftoverDed = Math.max(0, stdDed - ordIncome);
+      const taxableQual = Math.max(0, qualIncome - leftoverDed);
+
+      // 2. Ordinary Tax Calculation
+      let ordTax = 0;
+      for (let b of ORD_BRACKETS) {
+        if (taxableOrd > b.min) {
+          let chunk = Math.min(taxableOrd, b.max) - b.min;
+          ordTax += chunk * b.rate;
+        }
+      }
+
+      // 3. Qualified Dividend / Capital Gains Tax Calculation (Stacked on Ordinary Taxable Income)
+      let qualTax = 0;
+      const startStack = taxableOrd;
+      const endStack = taxableOrd + taxableQual;
+
+      // 0% Portion
+      const portion0 = Math.max(0, Math.min(endStack, QUAL_THRESHOLDS.zero) - Math.max(startStack, 0));
+      // 15% Portion
+      const portion15 = Math.max(0, Math.min(endStack, QUAL_THRESHOLDS.fifteen) - Math.max(startStack, QUAL_THRESHOLDS.zero));
+      // 20% Portion
+      const portion20 = Math.max(0, endStack - Math.max(startStack, QUAL_THRESHOLDS.fifteen));
+
+      qualTax = (portion15 * 0.15) + (portion20 * 0.20);
+
+      // 4. Net Investment Income Tax (NIIT) 3.8%
+      let niitTax = 0;
+      const totalMAGI = ordIncome + qualIncome;
+      if (includeNiit && totalMAGI > NIIT_THRESHOLD_MFJ) {
+        const subjectToNiit = Math.min(qualIncome, totalMAGI - NIIT_THRESHOLD_MFJ);
+        niitTax = Math.max(0, subjectToNiit * 0.038);
+      }
+
+      const totalTax = ordTax + qualTax + niitTax;
+
+      return { ordTax, qualTax, niitTax, totalTax };
+    }
+
+    function runSimulation() {
+      const startOrd = parseFloat(document.getElementById('startOrd').value) || 0;
+      const startQual = parseFloat(document.getElementById('startQual').value) || 0;
+      let incOrd = parseFloat(document.getElementById('incOrd').value) || 0;
+      let incQual = parseFloat(document.getElementById('incQual').value) || 0;
+      const maxIncome = parseFloat(document.getElementById('maxIncome').value) || 100000;
+      const stdDed = parseFloat(document.getElementById('stdDed').value) || 0;
+      const includeNiit = document.getElementById('includeNiit').checked;
+
+      if (incOrd <= 0 && incQual <= 0) {
+        incOrd = 2000;
+      }
+
+      const points = [];
+      let currOrd = startOrd;
+      let currQual = startQual;
+
+      while ((currOrd + currQual) <= maxIncome && points.length < 200) {
+        const totalInc = currOrd + currQual;
+        const taxRes = calculateTax(currOrd, currQual, stdDed, includeNiit);
+
+        let taxPercentChange = 0;
+
+        if (points.length > 0) {
+          const prev = points[points.length - 1];
+          const deltaTax = taxRes.totalTax - prev.totalTax;
+          const deltaInc = totalInc - prev.totalIncome;
+
+          // Difference in taxes vs difference in income (ΔTax / ΔIncome)
+          taxPercentChange = deltaInc > 0 ? (deltaTax / deltaInc) * 100 : 0;
+        }
+
+        points.push({
+          totalIncome: totalInc,
+          ordIncome: currOrd,
+          qualIncome: currQual,
+          ordTax: taxRes.ordTax,
+          qualTax: taxRes.qualTax,
+          niitTax: taxRes.niitTax,
+          totalTax: taxRes.totalTax,
+          taxPercentChange: taxPercentChange
+        });
+
+        currOrd += incOrd;
+        currQual += incQual;
+      }
+
+      updateKPIs(points);
+      updateChart(points);
+      updateTable(points);
+    }
+
+    function updateKPIs(points) {
+      if (!points.length) return;
+      const last = points[points.length - 1];
+      document.getElementById('kpiMaxIncome').textContent = formatCurrency(last.totalIncome);
+      document.getElementById('kpiTaxOwed').textContent = formatCurrency(last.totalTax);
+      document.getElementById('kpiTaxPercentChange').textContent = last.taxPercentChange.toFixed(1) + '%';
+    }
+
+    function updateChart(points) {
+      const labels = points.map(p => formatCurrency(p.totalIncome));
+      const totalTaxData = points.map(p => p.totalTax);
+      const ordTaxData = points.map(p => p.ordTax);
+      const qualTaxData = points.map(p => p.qualTax);
+      const percentChangeData = points.map(p => p.taxPercentChange.toFixed(2));
+
+      const ctx = document.getElementById('taxChart').getContext('2d');
+
+      if (chartInstance) {
+        chartInstance.destroy();
+      }
+
+      chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Total Tax Owed ($)',
+              data: totalTaxData,
+              borderColor: '#2563eb',
+              backgroundColor: 'rgba(37, 99, 235, 0.08)',
+              borderWidth: 3,
+              fill: true,
+              yAxisID: 'y'
+            },
+            {
+              label: 'Ordinary Tax ($)',
+              data: ordTaxData,
+              borderColor: '#d97706',
+              borderDash: [5, 5],
+              borderWidth: 2,
+              pointRadius: 0,
+              yAxisID: 'y'
+            },
+            {
+              label: 'Qualified Tax ($)',
+              data: qualTaxData,
+              borderColor: '#059669',
+              borderDash: [5, 5],
+              borderWidth: 2,
+              pointRadius: 0,
+              yAxisID: 'y'
+            },
+            {
+              label: 'Tax Chg / Inc Chg (ΔTax / ΔInc)',
+              data: percentChangeData,
+              borderColor: '#dc2626',
+              borderWidth: 2,
+              pointRadius: 3,
+              yAxisID: 'y1'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: {
+            mode: 'index',
+            intersect: false
+          },
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  let label = context.dataset.label || '';
+                  if (label) label += ': ';
+                  if (context.dataset.yAxisID === 'y1') {
+                    label += context.parsed.y + '%';
+                  } else {
+                    label += formatCurrency(context.parsed.y);
+                  }
+                  return label;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              title: { display: true, text: 'Total Gross Income ($)', font: { weight: 'bold' } },
+              ticks: { maxTicksLimit: 10 }
+            },
+            y: {
+              type: 'linear',
+              position: 'left',
+              title: { display: true, text: 'Tax Owed ($)', font: { weight: 'bold' } },
+              ticks: { callback: val => '$' + val.toLocaleString() }
+            },
+            y1: {
+              type: 'linear',
+              position: 'right',
+              title: { display: true, text: 'ΔTax / ΔIncome (%)', font: { weight: 'bold' } },
+              grid: { drawOnChartArea: false },
+              ticks: { callback: val => val + '%' }
+            }
+          }
+        }
+      });
+    }
+
+    function updateTable(points) {
+      const tbody = document.getElementById('tableBody');
+      tbody.innerHTML = '';
+      points.forEach(p => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${formatCurrency(p.totalIncome)}</td>
+          <td>${formatCurrency(p.ordIncome)}</td>
+          <td>${formatCurrency(p.qualIncome)}</td>
+          <td>${formatCurrency(p.ordTax)}</td>
+          <td>${formatCurrency(p.qualTax)}</td>
+          <td>${formatCurrency(p.niitTax)}</td>
+          <td style="font-weight:600; color: var(--primary);">${formatCurrency(p.totalTax)}</td>
+          <td style="color: var(--accent-rate);">${p.taxPercentChange.toFixed(1)}%</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function applyPreset(type) {
+      if (type === 'default') {
+        document.getElementById('startOrd').value = 45000;
+        document.getElementById('startQual').value = 45000;
+        document.getElementById('incOrd').value = 2000;
+        document.getElementById('incQual').value = 0;
+        document.getElementById('maxIncome').value = 250000;
+      } else if (type === 'pureOrd') {
+        document.getElementById('startOrd').value = 0;
+        document.getElementById('startQual').value = 0;
+        document.getElementById('incOrd').value = 10000;
+        document.getElementById('incQual').value = 0;
+        document.getElementById('maxIncome').value = 500000;
+      } else if (type === 'balanced') {
+        document.getElementById('startOrd').value = 0;
+        document.getElementById('startQual').value = 0;
+        document.getElementById('incOrd').value = 10000;
+        document.getElementById('incQual').value = 5000;
+        document.getElementById('maxIncome').value = 500000;
+      } else if (type === 'fixedOrd') {
+        document.getElementById('startOrd').value = 50000;
+        document.getElementById('startQual').value = 0;
+        document.getElementById('incOrd').value = 0;
+        document.getElementById('incQual').value = 10000;
+        document.getElementById('maxIncome').value = 400000;
+      }
+      runSimulation();
+    }
+
+    // Attach listeners
+    document.querySelectorAll('input').forEach(input => {
+      input.addEventListener('input', runSimulation);
+    });
+
+    // Initial run on load
+    runSimulation();
+  </script>
+</body>
+</html>
